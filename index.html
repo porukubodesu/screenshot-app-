@@ -1186,7 +1186,7 @@
     function analyzeText(ocrText) {
       const text = ocrText.toLowerCase();
       const detectedSubs = [];
-      
+
       for (const [subCat, keywords] of Object.entries(SUB_KEYWORDS)) {
         const matched = keywords.some(kw => text.includes(kw.toLowerCase()));
         if (matched) {
@@ -1206,7 +1206,7 @@
 
       const firstLine = ocrText.split('\n').find(line => line.trim().length > 0) || '';
       const title = firstLine.slice(0, 20) || 'スクリーンショット';
-      const summary = ocrText.replace(/\n/g, ' ').slice(0, 100) + (ocrText.length > 100 ? '...' : '');
+      const summary = generateSummary(ocrText);
 
       return {
         subCategories: detectedSubs.slice(0, 3),
@@ -1217,6 +1217,63 @@
       };
     }
 
+    // 要約生成関数
+    function generateSummary(ocrText) {
+      if (!ocrText || ocrText.trim().length === 0) {
+        return 'テキストが認識できませんでした';
+      }
+
+      // 改行を空白に置換してクリーンアップ
+      const cleanText = ocrText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+
+      // 文章を句読点で区切る
+      const sentences = cleanText.split(/[。.!?！？]/g)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      if (sentences.length === 0) {
+        // 句読点がない場合は単純に切り詰める
+        return cleanText.length > 100 ? cleanText.slice(0, 100) + '...' : cleanText;
+      }
+
+      // 重要そうな文を抽出（最初の2文 + 数字やキーワードを含む文）
+      let summary = '';
+      const importantKeywords = ['円', '¥', '日', '時', '場所', '予定', 'http', 'www', '@'];
+
+      // 最初の文を追加
+      summary = sentences[0];
+
+      // 100文字未満なら2文目も追加
+      if (summary.length < 100 && sentences.length > 1) {
+        summary += '。' + sentences[1];
+      }
+
+      // まだ短い場合、重要キーワードを含む文を探して追加
+      if (summary.length < 80 && sentences.length > 2) {
+        for (let i = 2; i < Math.min(sentences.length, 5); i++) {
+          const sentence = sentences[i];
+          const hasImportant = importantKeywords.some(kw => sentence.includes(kw)) ||
+                             /\d/.test(sentence);
+          if (hasImportant) {
+            const testSummary = summary + '。' + sentence;
+            if (testSummary.length <= 120) {
+              summary = testSummary;
+              break;
+            }
+          }
+        }
+      }
+
+      // 100文字を超える場合は切り詰める
+      if (summary.length > 100) {
+        summary = summary.slice(0, 100) + '...';
+      } else if (!summary.endsWith('。') && !summary.endsWith('...')) {
+        summary += '...';
+      }
+
+      return summary;
+    }
+
     // ============================================
     // ファイルアップロード
     // ============================================
@@ -1224,29 +1281,77 @@
       const files = Array.from(event.target.files || []);
       if (files.length === 0) return;
 
-      for (const file of files) {
-        await processFile(file);
+      const totalFiles = files.length;
+      const newScreenshots = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      showProcessing(`${totalFiles}個のファイルを処理中...`);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const result = await processFile(file, i + 1, totalFiles);
+
+        if (result.success) {
+          newScreenshots.push(result.screenshot);
+          successCount++;
+        } else {
+          failCount++;
+        }
       }
-      
+
+      // 全ファイル処理後に一度だけUI更新
+      if (newScreenshots.length > 0) {
+        screenshots.unshift(...newScreenshots);
+        saveData();
+        renderFolders();
+        renderSubTags();
+        renderCards();
+      }
+
+      // 完了メッセージ
+      if (failCount === 0) {
+        showProcessing(`完了！ ${successCount}個のファイルを追加しました ✅`);
+      } else {
+        showProcessing(`完了: ${successCount}個成功、${failCount}個失敗 ⚠️`);
+      }
+
+      setTimeout(hideProcessing, 2000);
       fileInput.value = '';
     }
 
-    async function processFile(file) {
-      showProcessing('画像を読み込み中...');
-
+    async function processFile(file, currentIndex, totalCount) {
       try {
-        const imageData = await new Promise((resolve) => {
+        // 進捗表示
+        if (totalCount > 1) {
+          showProcessing(`[${currentIndex}/${totalCount}] ${file.name} を読み込み中...`);
+        } else {
+          showProcessing('画像を読み込み中...');
+        }
+
+        const imageData = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(new Error('ファイル読み込みエラー'));
           reader.readAsDataURL(file);
         });
 
-        showProcessing('OCRで文字を認識中... 📖');
+        // OCR実行
+        if (totalCount > 1) {
+          showProcessing(`[${currentIndex}/${totalCount}] OCRで文字を認識中... 📖`);
+        } else {
+          showProcessing('OCRで文字を認識中... 📖');
+        }
 
         const result = await Tesseract.recognize(imageData, 'jpn+eng', {
           logger: (m) => {
             if (m.status === 'recognizing text') {
-              showProcessing(`文字認識中... ${Math.round(m.progress * 100)}%`);
+              const progress = Math.round(m.progress * 100);
+              if (totalCount > 1) {
+                showProcessing(`[${currentIndex}/${totalCount}] 文字認識中... ${progress}%`);
+              } else {
+                showProcessing(`文字認識中... ${progress}%`);
+              }
             }
           }
         });
@@ -1254,17 +1359,21 @@
         const ocrText = result.data.text.trim();
 
         if (!ocrText) {
-          showProcessing('文字が認識できませんでした 😅');
-          setTimeout(hideProcessing, 2000);
-          return;
+          console.warn(`No text recognized in file: ${file.name}`);
+          return { success: false, error: 'テキスト認識失敗' };
         }
 
-        showProcessing('AIが内容を分析中... ✨');
+        // 分析
+        if (totalCount > 1) {
+          showProcessing(`[${currentIndex}/${totalCount}] 内容を分析中... ✨`);
+        } else {
+          showProcessing('AIが内容を分析中... ✨');
+        }
 
         const analysis = analyzeText(ocrText);
 
         const newScreenshot = {
-          id: Date.now(),
+          id: Date.now() + currentIndex,  // 複数ファイルで重複しないようにインデックスを追加
           image: imageData,
           ocrText,
           subCategories: analysis.subCategories,
@@ -1275,19 +1384,11 @@
           createdAt: new Date().toISOString()
         };
 
-        screenshots.unshift(newScreenshot);
-        saveData();
-        renderFolders();
-        renderSubTags();
-        renderCards();
-
-        showProcessing('完了！ ✅');
-        setTimeout(hideProcessing, 1000);
+        return { success: true, screenshot: newScreenshot };
 
       } catch (error) {
-        console.error('Processing error:', error);
-        showProcessing('エラーが発生しました 😢');
-        setTimeout(hideProcessing, 2000);
+        console.error(`Processing error for file ${file.name}:`, error);
+        return { success: false, error: error.message };
       }
     }
 
