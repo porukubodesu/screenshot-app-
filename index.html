@@ -1176,8 +1176,18 @@
     }
 
     function saveData() {
-      localStorage.setItem('screenshots_v2', JSON.stringify(screenshots));
-      totalCount.textContent = `${screenshots.length}件のスクショ`;
+      try {
+        const dataString = JSON.stringify(screenshots);
+        localStorage.setItem('screenshots_v2', dataString);
+        totalCount.textContent = screenshots.length + '件のスクショ';
+      } catch (e) {
+        console.error('Save error:', e);
+        if (e.name === 'QuotaExceededError') {
+          alert('ストレージ容量が不足しています。古いスクリーンショットを削除してください。');
+        } else {
+          alert('データの保存に失敗しました: ' + e.message);
+        }
+      }
     }
 
     // ============================================
@@ -1223,39 +1233,50 @@
         return 'テキストが認識できませんでした';
       }
 
-      // 改行を空白に置換してクリーンアップ
-      const cleanText = ocrText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+      // 改行を空白に置換し、連続する空白を1つにまとめる
+      let cleanText = ocrText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-      // 文章を句読点で区切る
-      const sentences = cleanText.split(/[。.!?！？]/g)
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      // 制御文字を除去
+      cleanText = cleanText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
+      if (!cleanText || cleanText.length === 0) {
+        return 'テキストが認識できませんでした';
+      }
+
+      // 文章を句読点で区切る（日本語と英語の句読点に対応）
+      const sentences = cleanText.split(/[。\.!?！？\n]+/)
+        .map(function(s) { return s.trim(); })
+        .filter(function(s) { return s.length > 0; });
+
+      // 句読点がない、または文が抽出できない場合
       if (sentences.length === 0) {
-        // 句読点がない場合は単純に切り詰める
         return cleanText.length > 100 ? cleanText.slice(0, 100) + '...' : cleanText;
       }
 
-      // 重要そうな文を抽出（最初の2文 + 数字やキーワードを含む文）
+      // 重要そうな文を抽出
       let summary = '';
-      const importantKeywords = ['円', '¥', '日', '時', '場所', '予定', 'http', 'www', '@'];
+      const importantKeywords = ['円', '¥', '日', '時', '場所', '予定', 'http', 'www', '@', '月', '年'];
 
       // 最初の文を追加
       summary = sentences[0];
 
       // 100文字未満なら2文目も追加
       if (summary.length < 100 && sentences.length > 1) {
-        summary += '。' + sentences[1];
+        const separator = /[ぁ-んァ-ヶー一-龠]/.test(summary) ? '。' : '. ';
+        summary = summary + separator + sentences[1];
       }
 
       // まだ短い場合、重要キーワードを含む文を探して追加
       if (summary.length < 80 && sentences.length > 2) {
         for (let i = 2; i < Math.min(sentences.length, 5); i++) {
           const sentence = sentences[i];
-          const hasImportant = importantKeywords.some(kw => sentence.includes(kw)) ||
-                             /\d/.test(sentence);
+          const hasImportant = importantKeywords.some(function(kw) {
+            return sentence.indexOf(kw) !== -1;
+          }) || /\d/.test(sentence);
+
           if (hasImportant) {
-            const testSummary = summary + '。' + sentence;
+            const separator = /[ぁ-んァ-ヶー一-龠]/.test(summary) ? '。' : '. ';
+            const testSummary = summary + separator + sentence;
             if (testSummary.length <= 120) {
               summary = testSummary;
               break;
@@ -1267,8 +1288,8 @@
       // 100文字を超える場合は切り詰める
       if (summary.length > 100) {
         summary = summary.slice(0, 100) + '...';
-      } else if (!summary.endsWith('。') && !summary.endsWith('...')) {
-        summary += '...';
+      } else if (summary.indexOf('。') === -1 && summary.indexOf('...') === -1) {
+        summary = summary + '...';
       }
 
       return summary;
@@ -1278,79 +1299,101 @@
     // ファイルアップロード
     // ============================================
     async function handleFileUpload(event) {
-      const files = Array.from(event.target.files || []);
-      if (files.length === 0) return;
+      try {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) return;
 
-      const totalFiles = files.length;
-      const newScreenshots = [];
-      let successCount = 0;
-      let failCount = 0;
+        const totalFiles = files.length;
+        const newScreenshots = [];
+        let successCount = 0;
+        let failCount = 0;
 
-      showProcessing(`${totalFiles}個のファイルを処理中...`);
+        console.log('Starting upload of ' + totalFiles + ' files');
+        showProcessing(totalFiles + '個のファイルを処理中...');
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const result = await processFile(file, i + 1, totalFiles);
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          console.log('Processing file ' + (i + 1) + '/' + totalFiles + ': ' + file.name);
+          const result = await processFile(file, i + 1, totalFiles);
 
-        if (result.success) {
-          newScreenshots.push(result.screenshot);
-          successCount++;
-        } else {
-          failCount++;
+          if (result.success) {
+            newScreenshots.push(result.screenshot);
+            successCount++;
+            console.log('File processed successfully: ' + file.name);
+          } else {
+            failCount++;
+            console.warn('File processing failed: ' + file.name, result.error);
+          }
         }
-      }
 
-      // 全ファイル処理後に一度だけUI更新
-      if (newScreenshots.length > 0) {
-        screenshots.unshift(...newScreenshots);
-        saveData();
-        renderFolders();
-        renderSubTags();
-        renderCards();
-      }
+        // 全ファイル処理後に一度だけUI更新
+        if (newScreenshots.length > 0) {
+          console.log('Updating UI with ' + newScreenshots.length + ' new screenshots');
+          // Safari互換性のため、スプレッド演算子を使わずに配列を結合
+          screenshots = newScreenshots.concat(screenshots);
+          saveData();
+          renderFolders();
+          renderSubTags();
+          renderCards();
+        }
 
-      // 完了メッセージ
-      if (failCount === 0) {
-        showProcessing(`完了！ ${successCount}個のファイルを追加しました ✅`);
-      } else {
-        showProcessing(`完了: ${successCount}個成功、${failCount}個失敗 ⚠️`);
-      }
+        // 完了メッセージ
+        if (failCount === 0) {
+          showProcessing('完了！ ' + successCount + '個のファイルを追加しました ✅');
+        } else {
+          showProcessing('完了: ' + successCount + '個成功、' + failCount + '個失敗 ⚠️');
+        }
 
-      setTimeout(hideProcessing, 2000);
-      fileInput.value = '';
+        setTimeout(hideProcessing, 2000);
+        fileInput.value = '';
+      } catch (error) {
+        console.error('Upload error:', error);
+        showProcessing('エラーが発生しました: ' + error.message + ' 😢');
+        setTimeout(hideProcessing, 3000);
+      }
     }
 
     async function processFile(file, currentIndex, totalCount) {
       try {
+        // ファイルサイズチェック (10MB制限)
+        if (file.size > 10 * 1024 * 1024) {
+          console.warn('File too large: ' + file.name);
+          return { success: false, error: 'ファイルサイズが大きすぎます (最大10MB)' };
+        }
+
         // 進捗表示
         if (totalCount > 1) {
-          showProcessing(`[${currentIndex}/${totalCount}] ${file.name} を読み込み中...`);
+          showProcessing('[' + currentIndex + '/' + totalCount + '] ' + file.name + ' を読み込み中...');
         } else {
           showProcessing('画像を読み込み中...');
         }
 
-        const imageData = await new Promise((resolve, reject) => {
+        const imageData = await new Promise(function(resolve, reject) {
           const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = (e) => reject(new Error('ファイル読み込みエラー'));
+          reader.onload = function(e) {
+            resolve(e.target.result);
+          };
+          reader.onerror = function(e) {
+            reject(new Error('ファイル読み込みエラー'));
+          };
           reader.readAsDataURL(file);
         });
 
         // OCR実行
         if (totalCount > 1) {
-          showProcessing(`[${currentIndex}/${totalCount}] OCRで文字を認識中... 📖`);
+          showProcessing('[' + currentIndex + '/' + totalCount + '] OCRで文字を認識中... 📖');
         } else {
           showProcessing('OCRで文字を認識中... 📖');
         }
 
         const result = await Tesseract.recognize(imageData, 'jpn+eng', {
-          logger: (m) => {
+          logger: function(m) {
             if (m.status === 'recognizing text') {
               const progress = Math.round(m.progress * 100);
               if (totalCount > 1) {
-                showProcessing(`[${currentIndex}/${totalCount}] 文字認識中... ${progress}%`);
+                showProcessing('[' + currentIndex + '/' + totalCount + '] 文字認識中... ' + progress + '%');
               } else {
-                showProcessing(`文字認識中... ${progress}%`);
+                showProcessing('文字認識中... ' + progress + '%');
               }
             }
           }
@@ -1359,13 +1402,15 @@
         const ocrText = result.data.text.trim();
 
         if (!ocrText) {
-          console.warn(`No text recognized in file: ${file.name}`);
+          console.warn('No text recognized in file: ' + file.name);
           return { success: false, error: 'テキスト認識失敗' };
         }
 
+        console.log('OCR result length: ' + ocrText.length + ' chars');
+
         // 分析
         if (totalCount > 1) {
-          showProcessing(`[${currentIndex}/${totalCount}] 内容を分析中... ✨`);
+          showProcessing('[' + currentIndex + '/' + totalCount + '] 内容を分析中... ✨');
         } else {
           showProcessing('AIが内容を分析中... ✨');
         }
@@ -1373,9 +1418,9 @@
         const analysis = analyzeText(ocrText);
 
         const newScreenshot = {
-          id: Date.now() + currentIndex,  // 複数ファイルで重複しないようにインデックスを追加
+          id: Date.now() + currentIndex * 1000,  // 複数ファイルで重複しないようにインデックスを追加
           image: imageData,
-          ocrText,
+          ocrText: ocrText,
           subCategories: analysis.subCategories,
           majorCategories: analysis.majorCategories,
           title: analysis.title,
@@ -1387,8 +1432,8 @@
         return { success: true, screenshot: newScreenshot };
 
       } catch (error) {
-        console.error(`Processing error for file ${file.name}:`, error);
-        return { success: false, error: error.message };
+        console.error('Processing error for file ' + file.name + ':', error);
+        return { success: false, error: error.message || 'Unknown error' };
       }
     }
 
