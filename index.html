@@ -561,6 +561,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       padding: 14px 18px;
       border-bottom: 1px solid rgba(255,255,255,0.04);
       position: sticky;
@@ -596,6 +597,24 @@
       gap: 6px;
     }
     
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 12px;
+      background: rgba(255,255,255,0.06);
+      border: none;
+      border-radius: 6px;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: auto;
+    }
+
+    .back-btn:active {
+      transform: scale(0.97);
+    }
+
     .delete-btn {
       display: flex;
       align-items: center;
@@ -608,7 +627,7 @@
       cursor: pointer;
       font-size: 11px;
     }
-    
+
     .close-btn {
       display: flex;
       align-items: center;
@@ -889,6 +908,7 @@
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal" id="modal">
       <div class="modal-header">
+        <button class="back-btn" id="back-btn" onclick="closeModal()">← 戻る</button>
         <div class="modal-categories" id="modal-categories"></div>
         <div class="modal-actions">
           <button class="delete-btn" id="delete-btn">🗑️ 削除</button>
@@ -1177,16 +1197,18 @@
 
     function saveData() {
       try {
-        const dataString = JSON.stringify(screenshots);
+        var dataString = JSON.stringify(screenshots);
         localStorage.setItem('screenshots_v2', dataString);
-        totalCount.textContent = screenshots.length + '件のスクショ';
+        if (totalCount) {
+          totalCount.textContent = screenshots.length + '件のスクショ';
+        }
+        return true;
       } catch (e) {
         console.error('Save error:', e);
         if (e.name === 'QuotaExceededError') {
-          alert('ストレージ容量が不足しています。古いスクリーンショットを削除してください。');
-        } else {
-          alert('データの保存に失敗しました: ' + e.message);
+          console.error('Storage quota exceeded');
         }
+        return false;
       }
     }
 
@@ -1194,11 +1216,22 @@
     // OCR分析
     // ============================================
     function analyzeText(ocrText) {
-      const text = ocrText.toLowerCase();
-      const detectedSubs = [];
+      var text = ocrText.toLowerCase();
+      var detectedSubs = [];
+      var entries = Object.entries(SUB_KEYWORDS);
 
-      for (const [subCat, keywords] of Object.entries(SUB_KEYWORDS)) {
-        const matched = keywords.some(kw => text.includes(kw.toLowerCase()));
+      for (var i = 0; i < entries.length; i++) {
+        var subCat = entries[i][0];
+        var keywords = entries[i][1];
+        var matched = false;
+
+        for (var j = 0; j < keywords.length; j++) {
+          if (text.indexOf(keywords[j].toLowerCase()) !== -1) {
+            matched = true;
+            break;
+          }
+        }
+
         if (matched) {
           detectedSubs.push(subCat);
         }
@@ -1208,21 +1241,36 @@
         detectedSubs.push('ひらめき・メモ');
       }
 
-      const majorCats = new Set();
-      for (const sub of detectedSubs) {
-        const majors = SUB_TO_MAJOR[sub] || ['💭 プライベート'];
-        majors.forEach(m => majorCats.add(m));
+      var majorCats = [];
+      var majorSet = {};
+      for (var k = 0; k < detectedSubs.length; k++) {
+        var sub = detectedSubs[k];
+        var majors = SUB_TO_MAJOR[sub] || ['💭 プライベート'];
+        for (var m = 0; m < majors.length; m++) {
+          if (!majorSet[majors[m]]) {
+            majorSet[majors[m]] = true;
+            majorCats.push(majors[m]);
+          }
+        }
       }
 
-      const firstLine = ocrText.split('\n').find(line => line.trim().length > 0) || '';
-      const title = firstLine.slice(0, 20) || 'スクリーンショット';
-      const summary = generateSummary(ocrText);
+      var lines = ocrText.split('\n');
+      var firstLine = '';
+      for (var n = 0; n < lines.length; n++) {
+        if (lines[n].trim().length > 0) {
+          firstLine = lines[n];
+          break;
+        }
+      }
+
+      var title = firstLine.length > 0 ? firstLine.substring(0, 20) : 'スクリーンショット';
+      var summary = generateSummary(ocrText);
 
       return {
         subCategories: detectedSubs.slice(0, 3),
-        majorCategories: Array.from(majorCats),
-        title,
-        summary,
+        majorCategories: majorCats,
+        title: title,
+        summary: summary,
         tags: detectedSubs.slice(0, 5)
       };
     }
@@ -1233,66 +1281,31 @@
         return 'テキストが認識できませんでした';
       }
 
-      // 改行を空白に置換し、連続する空白を1つにまとめる
-      let cleanText = ocrText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-
-      // 制御文字を除去
-      cleanText = cleanText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+      // 改行を空白に置換（制御文字は削除しない）
+      var cleanText = ocrText.replace(/\r\n/g, '\n').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
 
       if (!cleanText || cleanText.length === 0) {
         return 'テキストが認識できませんでした';
       }
 
-      // 文章を句読点で区切る（日本語と英語の句読点に対応）
-      const sentences = cleanText.split(/[。\.!?！？\n]+/)
-        .map(function(s) { return s.trim(); })
-        .filter(function(s) { return s.length > 0; });
-
-      // 句読点がない、または文が抽出できない場合
-      if (sentences.length === 0) {
-        return cleanText.length > 100 ? cleanText.slice(0, 100) + '...' : cleanText;
+      // シンプルに100文字で切り詰める（文字化けを防ぐため複雑な処理を避ける）
+      if (cleanText.length <= 100) {
+        return cleanText;
       }
 
-      // 重要そうな文を抽出
-      let summary = '';
-      const importantKeywords = ['円', '¥', '日', '時', '場所', '予定', 'http', 'www', '@', '月', '年'];
+      // 100文字で切り詰めて、句読点の位置を探す
+      var truncated = cleanText.substring(0, 100);
+      var lastPeriod = Math.max(
+        truncated.lastIndexOf('。'),
+        truncated.lastIndexOf('.')
+      );
 
-      // 最初の文を追加
-      summary = sentences[0];
-
-      // 100文字未満なら2文目も追加
-      if (summary.length < 100 && sentences.length > 1) {
-        const separator = /[ぁ-んァ-ヶー一-龠]/.test(summary) ? '。' : '. ';
-        summary = summary + separator + sentences[1];
+      // 句読点が見つかればそこまで、見つからなければ100文字で切る
+      if (lastPeriod > 50) {
+        return truncated.substring(0, lastPeriod + 1);
+      } else {
+        return truncated + '...';
       }
-
-      // まだ短い場合、重要キーワードを含む文を探して追加
-      if (summary.length < 80 && sentences.length > 2) {
-        for (let i = 2; i < Math.min(sentences.length, 5); i++) {
-          const sentence = sentences[i];
-          const hasImportant = importantKeywords.some(function(kw) {
-            return sentence.indexOf(kw) !== -1;
-          }) || /\d/.test(sentence);
-
-          if (hasImportant) {
-            const separator = /[ぁ-んァ-ヶー一-龠]/.test(summary) ? '。' : '. ';
-            const testSummary = summary + separator + sentence;
-            if (testSummary.length <= 120) {
-              summary = testSummary;
-              break;
-            }
-          }
-        }
-      }
-
-      // 100文字を超える場合は切り詰める
-      if (summary.length > 100) {
-        summary = summary.slice(0, 100) + '...';
-      } else if (summary.indexOf('。') === -1 && summary.indexOf('...') === -1) {
-        summary = summary + '...';
-      }
-
-      return summary;
     }
 
     // ============================================
@@ -1300,55 +1313,58 @@
     // ============================================
     async function handleFileUpload(event) {
       try {
-        const files = Array.from(event.target.files || []);
+        var files = Array.from(event.target.files || []);
         if (files.length === 0) return;
 
-        const totalFiles = files.length;
-        const newScreenshots = [];
-        let successCount = 0;
-        let failCount = 0;
+        var totalFiles = files.length;
+        var newScreenshots = [];
+        var successCount = 0;
+        var failCount = 0;
 
         console.log('Starting upload of ' + totalFiles + ' files');
         showProcessing(totalFiles + '個のファイルを処理中...');
 
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
+        for (var i = 0; i < files.length; i++) {
+          var file = files[i];
           console.log('Processing file ' + (i + 1) + '/' + totalFiles + ': ' + file.name);
-          const result = await processFile(file, i + 1, totalFiles);
+          var result = await processFile(file, i + 1, totalFiles);
 
-          if (result.success) {
+          if (result && result.success) {
             newScreenshots.push(result.screenshot);
             successCount++;
             console.log('File processed successfully: ' + file.name);
           } else {
             failCount++;
-            console.warn('File processing failed: ' + file.name, result.error);
+            console.warn('File processing failed: ' + file.name, result ? result.error : 'Unknown error');
           }
         }
 
         // 全ファイル処理後に一度だけUI更新
         if (newScreenshots.length > 0) {
           console.log('Updating UI with ' + newScreenshots.length + ' new screenshots');
-          // Safari互換性のため、スプレッド演算子を使わずに配列を結合
           screenshots = newScreenshots.concat(screenshots);
-          saveData();
-          renderFolders();
-          renderSubTags();
-          renderCards();
+          var saved = saveData();
+          if (saved) {
+            renderFolders();
+            renderSubTags();
+            renderCards();
+          }
         }
 
         // 完了メッセージ
         if (failCount === 0) {
           showProcessing('完了！ ' + successCount + '個のファイルを追加しました ✅');
-        } else {
+        } else if (successCount > 0) {
           showProcessing('完了: ' + successCount + '個成功、' + failCount + '個失敗 ⚠️');
+        } else {
+          showProcessing('すべてのファイルの処理に失敗しました 😢');
         }
 
         setTimeout(hideProcessing, 2000);
         fileInput.value = '';
       } catch (error) {
         console.error('Upload error:', error);
-        showProcessing('エラーが発生しました: ' + error.message + ' 😢');
+        showProcessing('エラーが発生しました 😢');
         setTimeout(hideProcessing, 3000);
       }
     }
@@ -1368,8 +1384,8 @@
           showProcessing('画像を読み込み中...');
         }
 
-        const imageData = await new Promise(function(resolve, reject) {
-          const reader = new FileReader();
+        var imageData = await new Promise(function(resolve, reject) {
+          var reader = new FileReader();
           reader.onload = function(e) {
             resolve(e.target.result);
           };
@@ -1386,10 +1402,10 @@
           showProcessing('OCRで文字を認識中... 📖');
         }
 
-        const result = await Tesseract.recognize(imageData, 'jpn+eng', {
+        var result = await Tesseract.recognize(imageData, 'jpn+eng', {
           logger: function(m) {
             if (m.status === 'recognizing text') {
-              const progress = Math.round(m.progress * 100);
+              var progress = Math.round(m.progress * 100);
               if (totalCount > 1) {
                 showProcessing('[' + currentIndex + '/' + totalCount + '] 文字認識中... ' + progress + '%');
               } else {
@@ -1399,14 +1415,14 @@
           }
         });
 
-        const ocrText = result.data.text.trim();
+        var ocrText = result.data.text.trim();
 
         if (!ocrText) {
           console.warn('No text recognized in file: ' + file.name);
           return { success: false, error: 'テキスト認識失敗' };
         }
 
-        console.log('OCR result length: ' + ocrText.length + ' chars');
+        console.log('OCR result for ' + file.name + ': ' + ocrText.substring(0, 50) + '...');
 
         // 分析
         if (totalCount > 1) {
@@ -1415,10 +1431,10 @@
           showProcessing('AIが内容を分析中... ✨');
         }
 
-        const analysis = analyzeText(ocrText);
+        var analysis = analyzeText(ocrText);
 
-        const newScreenshot = {
-          id: Date.now() + currentIndex * 1000,  // 複数ファイルで重複しないようにインデックスを追加
+        var newScreenshot = {
+          id: Date.now() + currentIndex * 1000,
           image: imageData,
           ocrText: ocrText,
           subCategories: analysis.subCategories,
@@ -1428,6 +1444,8 @@
           tags: analysis.tags,
           createdAt: new Date().toISOString()
         };
+
+        console.log('Screenshot created - Title: ' + analysis.title + ', Summary: ' + analysis.summary.substring(0, 30));
 
         return { success: true, screenshot: newScreenshot };
 
