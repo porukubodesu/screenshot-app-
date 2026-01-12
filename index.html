@@ -1398,10 +1398,34 @@
           showProcessing('画像を読み込み中...');
         }
 
+        // 画像を読み込んで、必要に応じてリサイズ
         var imageData = await new Promise(function(resolve, reject) {
           var reader = new FileReader();
           reader.onload = function(e) {
-            resolve(e.target.result);
+            var img = new Image();
+            img.onload = function() {
+              // OCR用に画像をリサイズ（高さ最大2000px）
+              var maxHeight = 2000;
+              var width = img.width;
+              var height = img.height;
+
+              if (height > maxHeight) {
+                width = Math.round(width * (maxHeight / height));
+                height = maxHeight;
+              }
+
+              var canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+
+              resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+            img.onerror = function() {
+              reject(new Error('画像の読み込みに失敗しました'));
+            };
+            img.src = e.target.result;
           };
           reader.onerror = function(e) {
             reject(new Error('ファイル読み込みエラー'));
@@ -1416,8 +1440,10 @@
           showProcessing('OCRで文字を認識中... 📖');
         }
 
-        var result = await Tesseract.recognize(imageData, 'jpn', {
+        // タイムアウト付きOCR実行
+        var ocrPromise = Tesseract.recognize(imageData, 'jpn+eng', {
           logger: function(m) {
+            console.log('Tesseract:', m.status, 'Progress:', m.progress);
             if (m.status === 'recognizing text') {
               var progress = Math.round(m.progress * 100);
               if (totalCount > 1) {
@@ -1425,13 +1451,26 @@
               } else {
                 showProcessing('文字認識中... ' + progress + '%');
               }
+            } else if (m.status === 'loading tesseract core' || m.status === 'loading language traineddata') {
+              showProcessing('言語データを読み込み中...');
             }
-            console.log('Tesseract status:', m.status, m.progress);
-          },
-          langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/lang-data',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js'
+          }
         });
+
+        // 60秒のタイムアウトを設定
+        var timeoutPromise = new Promise(function(resolve, reject) {
+          setTimeout(function() {
+            reject(new Error('OCR処理がタイムアウトしました (60秒)'));
+          }, 60000);
+        });
+
+        var result;
+        try {
+          result = await Promise.race([ocrPromise, timeoutPromise]);
+        } catch (timeoutError) {
+          console.error('OCR timeout:', timeoutError);
+          return { success: false, error: 'OCR処理がタイムアウトしました' };
+        }
 
         var ocrText = result.data.text.trim();
 
