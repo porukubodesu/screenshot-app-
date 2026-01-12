@@ -1257,14 +1257,28 @@
       var lines = ocrText.split('\n');
       var firstLine = '';
       for (var n = 0; n < lines.length; n++) {
-        if (lines[n].trim().length > 0) {
-          firstLine = lines[n];
+        var line = lines[n].trim();
+        // 最初の実質的なコンテンツを持つ行を探す（3文字以上）
+        if (line.length >= 3) {
+          firstLine = line;
           break;
         }
       }
 
-      var title = firstLine.length > 0 ? firstLine.substring(0, 20) : 'スクリーンショット';
+      // タイトルを作成（20文字以内、安全に切り詰める）
+      var title = 'スクリーンショット';
+      if (firstLine.length > 0) {
+        // 20文字以内で切り詰める
+        if (firstLine.length <= 20) {
+          title = firstLine;
+        } else {
+          title = firstLine.substring(0, 20);
+        }
+      }
+
       var summary = generateSummary(ocrText);
+
+      console.log('Analysis result - Title:', title, 'Summary:', summary.substring(0, 50));
 
       return {
         subCategories: detectedSubs.slice(0, 3),
@@ -1402,7 +1416,7 @@
           showProcessing('OCRで文字を認識中... 📖');
         }
 
-        var result = await Tesseract.recognize(imageData, 'jpn+eng', {
+        var result = await Tesseract.recognize(imageData, 'jpn', {
           logger: function(m) {
             if (m.status === 'recognizing text') {
               var progress = Math.round(m.progress * 100);
@@ -1412,17 +1426,26 @@
                 showProcessing('文字認識中... ' + progress + '%');
               }
             }
-          }
+            console.log('Tesseract status:', m.status, m.progress);
+          },
+          langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/lang-data',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js'
         });
 
         var ocrText = result.data.text.trim();
+
+        // OCR結果の詳細ログ
+        console.log('=== OCR Result for ' + file.name + ' ===');
+        console.log('Confidence:', result.data.confidence);
+        console.log('Full text length:', ocrText.length);
+        console.log('First 200 chars:', ocrText.substring(0, 200));
+        console.log('Language:', result.data.languages);
 
         if (!ocrText) {
           console.warn('No text recognized in file: ' + file.name);
           return { success: false, error: 'テキスト認識失敗' };
         }
-
-        console.log('OCR result for ' + file.name + ': ' + ocrText.substring(0, 50) + '...');
 
         // 分析
         if (totalCount > 1) {
