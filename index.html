@@ -111,7 +111,35 @@
     .upload-btn:active {
       transform: scale(0.97);
     }
-    
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .settings-btn {
+      width: 38px;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .settings-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .settings-btn:active {
+      transform: scale(0.95);
+    }
+
     /* メインレイアウト */
     .container {
       max-width: 1400px;
@@ -840,6 +868,201 @@
       font-size: 12px;
       cursor: pointer;
     }
+
+    /* 設定モーダル */
+    .settings-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .settings-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .settings-modal {
+      background: linear-gradient(135deg, #141420 0%, #1a1a2e 100%);
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 85vh;
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.08);
+      transform: scale(0.95);
+      transition: transform 0.3s;
+    }
+
+    .settings-overlay.active .settings-modal {
+      transform: scale(1);
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky;
+      top: 0;
+      background: linear-gradient(135deg, #141420 0%, #1a1a2e 100%);
+      z-index: 10;
+    }
+
+    .settings-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-content {
+      padding: 20px;
+    }
+
+    .settings-section {
+      margin-bottom: 24px;
+    }
+
+    .settings-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0 0 16px 0;
+    }
+
+    .settings-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .settings-item label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+    }
+
+    .api-key-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .settings-item input[type="password"],
+    .settings-item input[type="text"] {
+      flex: 1;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    .settings-item input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .toggle-visibility {
+      width: 42px;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .toggle-visibility:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: #888;
+      line-height: 1.5;
+      margin: 4px 0 0 0;
+    }
+
+    .settings-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #667eea;
+      text-decoration: none;
+      margin-top: 8px;
+    }
+
+    .settings-link:hover {
+      text-decoration: underline;
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .save-btn {
+      flex: 1;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .save-btn:active {
+      transform: scale(0.98);
+    }
+
+    .cancel-btn {
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #ccc;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cancel-btn:hover {
+      background: rgba(255,255,255,0.08);
+    }
   </style>
 </head>
 <body>
@@ -853,9 +1076,12 @@
           <p id="total-count">0件のスクショ</p>
         </div>
       </div>
-      <label class="upload-btn" for="file-input">
-        ✨ 追加
-      </label>
+      <div class="header-actions">
+        <button class="settings-btn" id="settings-btn" onclick="openSettings()">⚙️</button>
+        <label class="upload-btn" for="file-input">
+          ✨ 追加
+        </label>
+      </div>
       <input type="file" id="file-input" accept="image/*" multiple>
     </div>
   </header>
@@ -946,6 +1172,39 @@
       <div class="install-banner-btns">
         <button class="install-btn" id="install-btn">インストール</button>
         <button class="install-dismiss" id="install-dismiss">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定モーダル -->
+  <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
+    <div class="settings-modal" onclick="event.stopPropagation()">
+      <div class="settings-header">
+        <h2>⚙️ 設定</h2>
+        <button class="close-btn" onclick="closeSettings()">×</button>
+      </div>
+      <div class="settings-content">
+        <div class="settings-section">
+          <h3>OCR設定</h3>
+          <div class="settings-item">
+            <label for="google-api-key">Google Cloud Vision API キー</label>
+            <div class="api-key-input-group">
+              <input type="password" id="google-api-key" placeholder="APIキーを入力...">
+              <button class="toggle-visibility" id="toggle-visibility" onclick="toggleApiKeyVisibility()">👁️</button>
+            </div>
+            <p class="settings-hint">
+              APIキーを設定すると、高精度で高速なGoogle Cloud Vision APIが使われます。
+              <br>未設定の場合はTesseract.js（無料）が使われます。
+            </p>
+            <a href="https://cloud.google.com/vision/docs/setup" target="_blank" class="settings-link">
+              📖 APIキーの取得方法
+            </a>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="save-btn" onclick="saveSettings()">💾 保存</button>
+          <button class="cancel-btn" onclick="closeSettings()">キャンセル</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1323,6 +1582,50 @@
     }
 
     // ============================================
+    // Google Cloud Vision API OCR
+    // ============================================
+    async function recognizeWithGoogleVision(imageData) {
+      var apiKey = localStorage.getItem('google_vision_api_key');
+      if (!apiKey) {
+        throw new Error('Google Cloud Vision API key not configured');
+      }
+
+      // base64データから先頭部分を削除
+      var base64Image = imageData.split(',')[1];
+
+      var requestBody = {
+        requests: [{
+          image: { content: base64Image },
+          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
+          imageContext: { languageHints: ['ja', 'en'] }
+        }]
+      };
+
+      var response = await fetch('https://vision.googleapis.com/v1/images:annotate?key=' + apiKey, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        var errorData = await response.json();
+        throw new Error('Google Vision API error: ' + (errorData.error?.message || response.statusText));
+      }
+
+      var data = await response.json();
+      var annotations = data.responses[0].textAnnotations;
+
+      if (!annotations || annotations.length === 0) {
+        return { text: '', confidence: 0 };
+      }
+
+      return {
+        text: annotations[0].description || '',
+        confidence: annotations[0].confidence || 0.9
+      };
+    }
+
+    // ============================================
     // ファイルアップロード
     // ============================================
     async function handleFileUpload(event) {
@@ -1440,46 +1743,83 @@
           showProcessing('OCRで文字を認識中... 📖');
         }
 
-        // タイムアウト付きOCR実行
-        var ocrPromise = Tesseract.recognize(imageData, 'jpn+eng', {
-          logger: function(m) {
-            console.log('Tesseract:', m.status, 'Progress:', m.progress);
-            if (m.status === 'recognizing text') {
-              var progress = Math.round(m.progress * 100);
-              if (totalCount > 1) {
-                showProcessing('[' + currentIndex + '/' + totalCount + '] 文字認識中... ' + progress + '%');
-              } else {
-                showProcessing('文字認識中... ' + progress + '%');
-              }
-            } else if (m.status === 'loading tesseract core' || m.status === 'loading language traineddata') {
-              showProcessing('言語データを読み込み中...');
+        var ocrText = '';
+        var confidence = 0;
+        var ocrEngine = 'unknown';
+
+        // Google Cloud Vision APIを優先的に使用
+        var hasGoogleVisionKey = !!localStorage.getItem('google_vision_api_key');
+
+        if (hasGoogleVisionKey) {
+          try {
+            console.log('Using Google Cloud Vision API for OCR');
+            if (totalCount > 1) {
+              showProcessing('[' + currentIndex + '/' + totalCount + '] Google Vision APIで認識中...');
+            } else {
+              showProcessing('Google Vision APIで文字を認識中...');
             }
+
+            var visionResult = await recognizeWithGoogleVision(imageData);
+            ocrText = visionResult.text.trim();
+            confidence = visionResult.confidence;
+            ocrEngine = 'Google Cloud Vision API';
+
+            console.log('Google Vision OCR completed. Text length:', ocrText.length);
+          } catch (visionError) {
+            console.warn('Google Vision API failed, falling back to Tesseract:', visionError);
+            hasGoogleVisionKey = false; // フォールバックする
           }
-        });
-
-        // 60秒のタイムアウトを設定
-        var timeoutPromise = new Promise(function(resolve, reject) {
-          setTimeout(function() {
-            reject(new Error('OCR処理がタイムアウトしました (60秒)'));
-          }, 60000);
-        });
-
-        var result;
-        try {
-          result = await Promise.race([ocrPromise, timeoutPromise]);
-        } catch (timeoutError) {
-          console.error('OCR timeout:', timeoutError);
-          return { success: false, error: 'OCR処理がタイムアウトしました' };
         }
 
-        var ocrText = result.data.text.trim();
+        // Google Vision APIが使えない場合はTesseract.jsを使用
+        if (!hasGoogleVisionKey || !ocrText) {
+          console.log('Using Tesseract.js for OCR');
+          if (totalCount > 1) {
+            showProcessing('[' + currentIndex + '/' + totalCount + '] Tesseract.jsで認識中...');
+          } else {
+            showProcessing('Tesseract.jsで文字を認識中...');
+          }
+
+          var ocrPromise = Tesseract.recognize(imageData, 'jpn+eng', {
+            logger: function(m) {
+              console.log('Tesseract:', m.status, 'Progress:', m.progress);
+              if (m.status === 'recognizing text') {
+                var progress = Math.round(m.progress * 100);
+                if (totalCount > 1) {
+                  showProcessing('[' + currentIndex + '/' + totalCount + '] 文字認識中... ' + progress + '%');
+                } else {
+                  showProcessing('文字認識中... ' + progress + '%');
+                }
+              } else if (m.status === 'loading tesseract core' || m.status === 'loading language traineddata') {
+                showProcessing('言語データを読み込み中...');
+              }
+            }
+          });
+
+          var timeoutPromise = new Promise(function(resolve, reject) {
+            setTimeout(function() {
+              reject(new Error('OCR処理がタイムアウトしました (60秒)'));
+            }, 60000);
+          });
+
+          var result;
+          try {
+            result = await Promise.race([ocrPromise, timeoutPromise]);
+            ocrText = result.data.text.trim();
+            confidence = result.data.confidence / 100;
+            ocrEngine = 'Tesseract.js';
+          } catch (timeoutError) {
+            console.error('OCR timeout:', timeoutError);
+            return { success: false, error: 'OCR処理がタイムアウトしました' };
+          }
+        }
 
         // OCR結果の詳細ログ
         console.log('=== OCR Result for ' + file.name + ' ===');
-        console.log('Confidence:', result.data.confidence);
+        console.log('OCR Engine:', ocrEngine);
+        console.log('Confidence:', confidence);
         console.log('Full text length:', ocrText.length);
         console.log('First 200 chars:', ocrText.substring(0, 200));
-        console.log('Language:', result.data.languages);
 
         if (!ocrText) {
           console.warn('No text recognized in file: ' + file.name);
@@ -1730,6 +2070,44 @@
     function closeModal() {
       modalOverlay.classList.remove('active');
       selectedItem = null;
+    }
+
+    // ============================================
+    // 設定モーダル
+    // ============================================
+    var settingsOverlay = document.getElementById('settings-overlay');
+    var googleApiKeyInput = document.getElementById('google-api-key');
+
+    function openSettings() {
+      var apiKey = localStorage.getItem('google_vision_api_key') || '';
+      googleApiKeyInput.value = apiKey;
+      settingsOverlay.classList.add('active');
+    }
+
+    function closeSettings() {
+      settingsOverlay.classList.remove('active');
+    }
+
+    function toggleApiKeyVisibility() {
+      if (googleApiKeyInput.type === 'password') {
+        googleApiKeyInput.type = 'text';
+      } else {
+        googleApiKeyInput.type = 'password';
+      }
+    }
+
+    function saveSettings() {
+      var apiKey = googleApiKeyInput.value.trim();
+
+      if (apiKey) {
+        localStorage.setItem('google_vision_api_key', apiKey);
+        alert('✅ 設定を保存しました。次回からGoogle Cloud Vision APIが使用されます。');
+      } else {
+        localStorage.removeItem('google_vision_api_key');
+        alert('✅ 設定を保存しました。Tesseract.jsが使用されます。');
+      }
+
+      closeSettings();
     }
 
     function handleDelete() {
