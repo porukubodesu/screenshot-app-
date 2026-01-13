@@ -1,0 +1,10 @@
+name = "screenshot-summarizer"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# このWorkerはClaude APIを使って要約を生成します
+# デプロイ前に以下のコマンドでAPIキーを設定してください：
+# npx wrangler secret put ANTHROPIC_API_KEY
+
+[env.production]
+# 本番環境の設定

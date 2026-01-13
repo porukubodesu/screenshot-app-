@@ -869,6 +869,140 @@
       cursor: pointer;
     }
 
+    /* パスワードロック画面 */
+    .password-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+    }
+
+    .password-overlay.hidden {
+      display: none;
+    }
+
+    .password-modal {
+      background: white;
+      border-radius: 20px;
+      max-width: 400px;
+      width: 100%;
+      padding: 40px 30px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .password-header {
+      margin-bottom: 30px;
+    }
+
+    .password-icon {
+      font-size: 60px;
+      margin-bottom: 20px;
+    }
+
+    .password-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #333;
+      margin: 0 0 8px 0;
+    }
+
+    .password-header p {
+      font-size: 14px;
+      color: #666;
+      margin: 0;
+    }
+
+    .password-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #password-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      text-align: center;
+      transition: all 0.2s;
+      box-sizing: border-box;
+    }
+
+    #password-input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+
+    .password-error {
+      color: #e74c3c;
+      font-size: 13px;
+      margin: 0;
+      min-height: 18px;
+      font-weight: 500;
+    }
+
+    .password-submit {
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .password-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .password-submit:active {
+      transform: scale(0.98);
+    }
+
+    .password-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .password-footer {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .password-hint {
+      font-size: 12px;
+      color: #999;
+      margin: 0 0 12px 0;
+    }
+
+    .password-reset {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .password-reset:hover {
+      color: #c0392b;
+    }
+
     /* 設定モーダル */
     .settings-overlay {
       position: fixed;
@@ -1063,6 +1197,28 @@
     .cancel-btn:hover {
       background: rgba(255,255,255,0.08);
     }
+
+    .password-change-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .password-change-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: #667eea;
+    }
   </style>
 </head>
 <body>
@@ -1176,6 +1332,26 @@
     </div>
   </div>
 
+  <!-- パスワードロック画面 -->
+  <div class="password-overlay" id="password-overlay">
+    <div class="password-modal">
+      <div class="password-header">
+        <div class="password-icon">🔒</div>
+        <h2 id="password-title">スクショ整理くん</h2>
+        <p id="password-subtitle">パスワードを入力してください</p>
+      </div>
+      <div class="password-content">
+        <input type="password" id="password-input" placeholder="パスワード" autocomplete="current-password">
+        <p class="password-error" id="password-error"></p>
+        <button class="password-submit" id="password-submit" onclick="submitPassword()">ロック解除</button>
+        <div class="password-footer">
+          <p class="password-hint">初回起動時に設定したパスワードを入力してください</p>
+          <button class="password-reset" onclick="resetApp()">データをリセット</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 設定モーダル -->
   <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
     <div class="settings-modal" onclick="event.stopPropagation()">
@@ -1201,6 +1377,30 @@
             </a>
           </div>
         </div>
+        <div class="settings-section">
+          <h3>要約設定</h3>
+          <div class="settings-item">
+            <label for="summarizer-url">Claude API 要約サーバー URL</label>
+            <input type="text" id="summarizer-url" placeholder="https://your-worker.workers.dev">
+            <p class="settings-hint">
+              Cloudflare WorkerのURLを設定すると、Claude APIで高品質な要約が生成されます。
+              <br>未設定の場合は簡易要約（テキストの先頭100文字）が使われます。
+            </p>
+            <a href="CLOUDFLARE_SETUP.md" target="_blank" class="settings-link">
+              📖 セットアップガイド
+            </a>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>セキュリティ設定</h3>
+          <div class="settings-item">
+            <button class="password-change-btn" onclick="changePassword()">🔐 パスワードを変更</button>
+            <p class="settings-hint">
+              アプリ起動時のパスワードを変更できます。
+              <br>データは自動的に暗号化されて保存されます。
+            </p>
+          </div>
+        </div>
         <div class="settings-actions">
           <button class="save-btn" onclick="saveSettings()">💾 保存</button>
           <button class="cancel-btn" onclick="closeSettings()">キャンセル</button>
@@ -1210,6 +1410,207 @@
   </div>
 
   <script>
+    // ============================================
+    // パスワードロック機能
+    // ============================================
+    var isLocked = true;
+    var failedAttempts = 0;
+    var MAX_ATTEMPTS = 5;
+
+    // Web Crypto APIでパスワードから暗号化キーを生成
+    async function deriveKey(password, salt) {
+      var enc = new TextEncoder();
+      var keyMaterial = await window.crypto.subtle.importKey(
+        'raw',
+        enc.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+      );
+
+      return window.crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    // データを暗号化
+    async function encryptData(data, password) {
+      var salt = window.crypto.getRandomValues(new Uint8Array(16));
+      var iv = window.crypto.getRandomValues(new Uint8Array(12));
+      var key = await deriveKey(password, salt);
+
+      var enc = new TextEncoder();
+      var encrypted = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        enc.encode(data)
+      );
+
+      // salt + iv + encrypted dataを結合
+      var result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+      result.set(salt, 0);
+      result.set(iv, salt.length);
+      result.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+      // Base64エンコード
+      return btoa(String.fromCharCode.apply(null, result));
+    }
+
+    // データを復号化
+    async function decryptData(encryptedData, password) {
+      try {
+        // Base64デコード
+        var data = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+
+        var salt = data.slice(0, 16);
+        var iv = data.slice(16, 28);
+        var encrypted = data.slice(28);
+
+        var key = await deriveKey(password, salt);
+
+        var decrypted = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv },
+          key,
+          encrypted
+        );
+
+        var dec = new TextDecoder();
+        return dec.decode(decrypted);
+      } catch (e) {
+        throw new Error('Invalid password');
+      }
+    }
+
+    // パスワードハッシュを生成（検証用）
+    async function hashPassword(password) {
+      var enc = new TextEncoder();
+      var data = enc.encode(password);
+      var hash = await window.crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode.apply(null, new Uint8Array(hash)));
+    }
+
+    // パスワード送信
+    async function submitPassword() {
+      var passwordInput = document.getElementById('password-input');
+      var passwordError = document.getElementById('password-error');
+      var passwordSubmit = document.getElementById('password-submit');
+      var password = passwordInput.value;
+
+      if (!password) {
+        passwordError.textContent = 'パスワードを入力してください';
+        return;
+      }
+
+      passwordSubmit.disabled = true;
+      passwordError.textContent = '';
+
+      // 初回起動チェック
+      var isFirstTime = !localStorage.getItem('password_hash');
+
+      if (isFirstTime) {
+        // 初回：パスワードを設定
+        if (password.length < 4) {
+          passwordError.textContent = 'パスワードは4文字以上で設定してください';
+          passwordSubmit.disabled = false;
+          return;
+        }
+
+        var hash = await hashPassword(password);
+        localStorage.setItem('password_hash', hash);
+        localStorage.setItem('failed_attempts', '0');
+
+        unlockApp();
+      } else {
+        // ロック解除チェック
+        var failedCount = parseInt(localStorage.getItem('failed_attempts') || '0');
+
+        if (failedCount >= MAX_ATTEMPTS) {
+          passwordError.textContent = '試行回数が上限に達しました。データをリセットしてください。';
+          passwordSubmit.disabled = false;
+          return;
+        }
+
+        var storedHash = localStorage.getItem('password_hash');
+        var inputHash = await hashPassword(password);
+
+        if (inputHash === storedHash) {
+          // パスワード正解
+          localStorage.setItem('failed_attempts', '0');
+
+          // 暗号化データがあれば復号化
+          var encryptedData = localStorage.getItem('screenshots_encrypted');
+          if (encryptedData) {
+            try {
+              var decrypted = await decryptData(encryptedData, password);
+              localStorage.setItem('screenshots_v2', decrypted);
+            } catch (e) {
+              console.error('Decryption failed:', e);
+            }
+          }
+
+          unlockApp();
+        } else {
+          // パスワード不正解
+          failedCount++;
+          localStorage.setItem('failed_attempts', failedCount.toString());
+
+          var remaining = MAX_ATTEMPTS - failedCount;
+          if (remaining > 0) {
+            passwordError.textContent = 'パスワードが違います（残り' + remaining + '回）';
+          } else {
+            passwordError.textContent = '試行回数が上限に達しました。データをリセットしてください。';
+          }
+
+          passwordInput.value = '';
+          passwordSubmit.disabled = false;
+        }
+      }
+    }
+
+    // アプリのロックを解除
+    function unlockApp() {
+      isLocked = false;
+      document.getElementById('password-overlay').classList.add('hidden');
+      init();
+    }
+
+    // アプリをリセット
+    function resetApp() {
+      if (confirm('すべてのデータが削除されます。本当にリセットしますか？')) {
+        localStorage.clear();
+        location.reload();
+      }
+    }
+
+    // Enterキーでsubmit
+    document.addEventListener('DOMContentLoaded', function() {
+      var passwordInput = document.getElementById('password-input');
+      if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            submitPassword();
+          }
+        });
+      }
+
+      // 初回起動チェック
+      var isFirstTime = !localStorage.getItem('password_hash');
+      if (isFirstTime) {
+        document.getElementById('password-title').textContent = 'パスワード設定';
+        document.getElementById('password-subtitle').textContent = '新しいパスワードを設定してください（4文字以上）';
+        document.querySelector('.password-hint').textContent = 'このパスワードは忘れないようにしてください';
+      }
+    });
+
     // ============================================
     // Service Worker登録
     // ============================================
@@ -1549,31 +1950,61 @@
     }
 
     // 要約生成関数
-    function generateSummary(ocrText) {
+    // ============================================
+    // Claude APIで要約生成
+    // ============================================
+    async function generateSummary(ocrText) {
       if (!ocrText || ocrText.trim().length === 0) {
         return 'テキストが認識できませんでした';
       }
 
-      // 改行を空白に置換（制御文字は削除しない）
+      // Cloudflare Worker URLを取得（設定から）
+      var summarizerUrl = localStorage.getItem('summarizer_api_url');
+
+      // URLが設定されていない場合は従来の方法で要約
+      if (!summarizerUrl) {
+        return generateSimpleSummary(ocrText);
+      }
+
+      try {
+        // Claude API経由で要約を生成
+        var response = await fetch(summarizerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: ocrText })
+        });
+
+        if (!response.ok) {
+          console.warn('Summarizer API failed, using simple summary');
+          return generateSimpleSummary(ocrText);
+        }
+
+        var data = await response.json();
+        return data.summary || generateSimpleSummary(ocrText);
+      } catch (error) {
+        console.warn('Summarizer API error:', error);
+        return generateSimpleSummary(ocrText);
+      }
+    }
+
+    // シンプルな要約（フォールバック用）
+    function generateSimpleSummary(ocrText) {
       var cleanText = ocrText.replace(/\r\n/g, '\n').replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
 
       if (!cleanText || cleanText.length === 0) {
         return 'テキストが認識できませんでした';
       }
 
-      // シンプルに100文字で切り詰める（文字化けを防ぐため複雑な処理を避ける）
       if (cleanText.length <= 100) {
         return cleanText;
       }
 
-      // 100文字で切り詰めて、句読点の位置を探す
       var truncated = cleanText.substring(0, 100);
       var lastPeriod = Math.max(
         truncated.lastIndexOf('。'),
         truncated.lastIndexOf('.')
       );
 
-      // 句読点が見つかればそこまで、見つからなければ100文字で切る
       if (lastPeriod > 50) {
         return truncated.substring(0, lastPeriod + 1);
       } else {
@@ -2077,10 +2508,13 @@
     // ============================================
     var settingsOverlay = document.getElementById('settings-overlay');
     var googleApiKeyInput = document.getElementById('google-api-key');
+    var summarizerUrlInput = document.getElementById('summarizer-url');
 
     function openSettings() {
       var apiKey = localStorage.getItem('google_vision_api_key') || '';
+      var summarizerUrl = localStorage.getItem('summarizer_api_url') || '';
       googleApiKeyInput.value = apiKey;
+      summarizerUrlInput.value = summarizerUrl;
       settingsOverlay.classList.add('active');
     }
 
@@ -2098,16 +2532,93 @@
 
     function saveSettings() {
       var apiKey = googleApiKeyInput.value.trim();
+      var summarizerUrl = summarizerUrlInput.value.trim();
 
+      // Google Vision API キー保存
       if (apiKey) {
         localStorage.setItem('google_vision_api_key', apiKey);
-        alert('✅ 設定を保存しました。次回からGoogle Cloud Vision APIが使用されます。');
       } else {
         localStorage.removeItem('google_vision_api_key');
-        alert('✅ 設定を保存しました。Tesseract.jsが使用されます。');
       }
 
+      // Summarizer URL保存
+      if (summarizerUrl) {
+        localStorage.setItem('summarizer_api_url', summarizerUrl);
+      } else {
+        localStorage.removeItem('summarizer_api_url');
+      }
+
+      // 保存完了メッセージ
+      var messages = [];
+      if (apiKey) {
+        messages.push('Google Cloud Vision APIが有効');
+      } else {
+        messages.push('Tesseract.jsを使用');
+      }
+
+      if (summarizerUrl) {
+        messages.push('Claude API要約が有効');
+      } else {
+        messages.push('簡易要約を使用');
+      }
+
+      alert('✅ 設定を保存しました\n\n' + messages.join('\n'));
       closeSettings();
+    }
+
+    // パスワード変更
+    async function changePassword() {
+      var oldPassword = prompt('現在のパスワードを入力してください:');
+      if (!oldPassword) return;
+
+      // 現在のパスワードを検証
+      var storedHash = localStorage.getItem('password_hash');
+      var inputHash = await hashPassword(oldPassword);
+
+      if (inputHash !== storedHash) {
+        alert('❌ パスワードが間違っています');
+        return;
+      }
+
+      var newPassword = prompt('新しいパスワードを入力してください（4文字以上）:');
+      if (!newPassword || newPassword.length < 4) {
+        alert('❌ パスワードは4文字以上で設定してください');
+        return;
+      }
+
+      var confirmPassword = prompt('新しいパスワードをもう一度入力してください:');
+      if (newPassword !== confirmPassword) {
+        alert('❌ パスワードが一致しません');
+        return;
+      }
+
+      // データを再暗号化
+      var data = localStorage.getItem('screenshots_v2');
+      if (data) {
+        try {
+          // 新しいパスワードで暗号化
+          var encrypted = await encryptData(data, newPassword);
+          localStorage.setItem('screenshots_encrypted', encrypted);
+
+          // 新しいハッシュを保存
+          var newHash = await hashPassword(newPassword);
+          localStorage.setItem('password_hash', newHash);
+          localStorage.setItem('failed_attempts', '0');
+
+          alert('✅ パスワードを変更しました');
+          closeSettings();
+        } catch (e) {
+          alert('❌ 暗号化に失敗しました');
+          console.error('Encryption failed:', e);
+        }
+      } else {
+        // データがない場合はハッシュだけ更新
+        var newHash = await hashPassword(newPassword);
+        localStorage.setItem('password_hash', newHash);
+        localStorage.setItem('failed_attempts', '0');
+        alert('✅ パスワードを変更しました');
+        closeSettings();
+      }
     }
 
     function handleDelete() {
@@ -2121,8 +2632,27 @@
       closeModal();
     }
 
-    // 初期化実行
-    init();
+    // 初期化実行（パスワードロック解除後に実行）
+    // init(); は unlockApp() から呼ばれる
+
+    // ページ離脱時にデータを暗号化
+    window.addEventListener('beforeunload', async function() {
+      if (!isLocked) {
+        var password = prompt('データを暗号化するために、パスワードを再入力してください:');
+        if (password) {
+          var data = localStorage.getItem('screenshots_v2');
+          if (data) {
+            try {
+              var encrypted = await encryptData(data, password);
+              localStorage.setItem('screenshots_encrypted', encrypted);
+              localStorage.removeItem('screenshots_v2');
+            } catch (e) {
+              console.error('Encryption failed:', e);
+            }
+          }
+        }
+      }
+    });
   </script>
 </body>
 </html>
